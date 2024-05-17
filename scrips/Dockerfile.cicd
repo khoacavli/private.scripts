@@ -1,0 +1,39 @@
+# Use the base image
+FROM ghcr.io/cavli-wireless/sdx35/owrt:latest
+
+# Create a user group with GID 1000
+RUN groupadd -g 1000 cavli
+
+# Create a user with UID 1000 and add to the group with GID 1000
+RUN useradd -u 1000 -g 1000 -m -s /bin/bash cavli
+RUN usermod -aG sudo cavli
+
+# Install required packages
+RUN apt-get update && \
+    apt-get install -y ca-certificates curl gnupg lsb-release
+
+# Create the necessary directory for the Docker GPG key
+RUN install -m 0755 -d /etc/apt/keyrings
+
+# Download the Docker GPG key
+RUN curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc && \
+    chmod a+r /etc/apt/keyrings/docker.asc
+
+# Add Docker repository to Apt sources
+RUN echo \
+    "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu \
+    $(. /etc/os-release && echo \"$VERSION_CODENAME\") stable" | \
+    tee /etc/apt/sources.list.d/docker.list > /dev/null
+
+# Update package index and install Docker packages
+RUN apt-get update && \
+    apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+
+# Grant the user sudo privileges (optional)
+RUN echo 'cavli ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers
+
+# Set the default user to cavli
+USER cavli
+
+# Set the command to run /data/run.sh
+CMD ["/data/run.sh &"]
